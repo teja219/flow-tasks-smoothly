@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TaskQueue } from '@/components/TaskQueue';
 import { AddTaskForm } from '@/components/AddTaskForm';
+import { WaitTimePicker } from '@/components/WaitTimePicker';
 import { useTaskQueue } from '@/hooks/useTaskQueue';
 import { Layers } from 'lucide-react';
+import { Task } from '@/types/task';
 
 const Index = () => {
   const {
@@ -14,6 +17,22 @@ const Index = () => {
     moveToRunning,
     pushToBack,
   } = useTaskQueue();
+
+  const [pendingMoveTask, setPendingMoveTask] = useState<Task | null>(null);
+
+  const handleMoveToWaiting = (taskId: string) => {
+    const task = runningQueue.find(t => t.id === taskId);
+    if (task) {
+      setPendingMoveTask(task);
+    }
+  };
+
+  const handleConfirmWait = (minutes: number) => {
+    if (pendingMoveTask) {
+      moveToWaiting(pendingMoveTask.id, minutes);
+      setPendingMoveTask(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,7 +78,7 @@ const Index = () => {
               queue="running"
               tasks={runningQueue}
               onClose={(id) => closeTask(id, 'running')}
-              onMove={moveToWaiting}
+              onMove={handleMoveToWaiting}
               onPushToBack={(id) => pushToBack(id, 'running')}
             />
           </motion.div>
@@ -90,6 +109,14 @@ const Index = () => {
           <p>Tip: Use gestures to manage your tasks efficiently</p>
         </motion.footer>
       </div>
+
+      {/* Wait Time Picker Dialog */}
+      <WaitTimePicker
+        open={!!pendingMoveTask}
+        onClose={() => setPendingMoveTask(null)}
+        onSelect={handleConfirmWait}
+        taskTitle={pendingMoveTask?.title || ''}
+      />
     </div>
   );
 };

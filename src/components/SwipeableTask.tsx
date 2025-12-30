@@ -1,7 +1,7 @@
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
-import { Check, ArrowRight, ArrowLeft, X, ArrowDown } from 'lucide-react';
+import { ArrowRight, ArrowLeft, X, ArrowDown, Clock } from 'lucide-react';
 import { Task, QueueType } from '@/types/task';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SwipeableTaskProps {
   task: Task;
@@ -10,6 +10,28 @@ interface SwipeableTaskProps {
   onMove: () => void;
   onPushToBack: () => void;
 }
+
+const formatTimeRemaining = (returnAt: Date): string => {
+  const now = new Date();
+  const diff = returnAt.getTime() - now.getTime();
+  
+  if (diff <= 0) return 'Now';
+  
+  const minutes = Math.floor(diff / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+  
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  }
+  
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  
+  return `${seconds}s`;
+};
 
 export const SwipeableTask = ({
   task,
@@ -21,6 +43,19 @@ export const SwipeableTask = ({
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
+
+  // Update time remaining for waiting tasks
+  useEffect(() => {
+    if (queue === 'waiting' && task.returnAt) {
+      const updateTime = () => {
+        setTimeRemaining(formatTimeRemaining(task.returnAt!));
+      };
+      updateTime();
+      const interval = setInterval(updateTime, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [queue, task.returnAt]);
 
   const leftBgOpacity = useTransform(x, [-150, -50, 0], [1, 0.5, 0]);
   const rightBgOpacity = useTransform(x, [0, 50, 150], [0, 0.5, 1]);
@@ -113,11 +148,19 @@ export const SwipeableTask = ({
         onDragEnd={handleDragEnd}
         whileTap={{ cursor: 'grabbing' }}
       >
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${
-            queue === 'running' ? 'bg-running-accent animate-pulse-soft' : 'bg-waiting-accent'
-          }`} />
-          <span className="font-medium text-foreground">{task.title}</span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${
+              queue === 'running' ? 'bg-running-accent animate-pulse-soft' : 'bg-waiting-accent'
+            }`} />
+            <span className="font-medium text-foreground">{task.title}</span>
+          </div>
+          {queue === 'waiting' && timeRemaining && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
+              <Clock className="w-3 h-3" />
+              <span>{timeRemaining}</span>
+            </div>
+          )}
         </div>
         
         {!isDragging && (
