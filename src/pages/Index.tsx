@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TaskQueue } from '@/components/TaskQueue';
 import { AddTaskForm } from '@/components/AddTaskForm';
@@ -19,6 +19,31 @@ const Index = () => {
   } = useTaskQueue();
 
   const [pendingMoveTask, setPendingMoveTask] = useState<Task | null>(null);
+  const [notificationEmail, setNotificationEmail] = useState<string | null>(null);
+
+  // ask user once for notification email and persist it
+  useEffect(() => {
+    const stored = localStorage.getItem('notification-email');
+    if (stored) {
+      setNotificationEmail(stored);
+      return;
+    }
+
+    // ask once via prompt (simple UX for this demo). You can replace with a nicer modal if you want.
+    const email = window.prompt('Enter your email to receive task notifications (will be stored in localStorage):');
+    if (email && /\S+@\S+\.\S+/.test(email)) {
+      localStorage.setItem('notification-email', email);
+      setNotificationEmail(email);
+    }
+  }, []);
+
+  const handleChangeEmail = () => {
+    const email = window.prompt('Enter the email to send notifications to:', notificationEmail || '');
+    if (email && /\S+@\S+\.\S+/.test(email)) {
+      localStorage.setItem('notification-email', email);
+      setNotificationEmail(email);
+    }
+  };
 
   const handleMoveToWaiting = (taskId: string) => {
     const task = runningQueue.find(t => t.id === taskId);
@@ -54,6 +79,13 @@ const Index = () => {
           <p className="text-muted-foreground max-w-md mx-auto">
             Swipe left to close, right to move between queues. Pull down to push to back.
           </p>
+
+          <div className="mt-3 text-sm text-muted-foreground">
+            <span>Notification email:&nbsp;</span>
+            <button className="underline" onClick={handleChangeEmail}>
+              {notificationEmail ?? 'Set email'}
+            </button>
+          </div>
         </motion.header>
 
         {/* Add Task Form */}

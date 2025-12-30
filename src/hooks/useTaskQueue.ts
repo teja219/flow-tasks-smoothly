@@ -95,6 +95,27 @@ export const useTaskQueue = () => {
     saveTasksToStorage(STORAGE_KEY_WAITING, waitingQueue);
   }, [waitingQueue]);
 
+  // Helper: send email notification via backend endpoint (if configured & user provided an email)
+  const sendEmailNotification = async (task: Task) => {
+    try {
+      const to = localStorage.getItem('notification-email');
+      const endpoint = (import.meta.env as any).VITE_EMAIL_ENDPOINT || 'http://localhost:4000/send-email';
+      if (!to) return;
+
+      await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to,
+          subject: `Task "${task.title}" is running`,
+          html: `<p>Your task <strong>${task.title}</strong> is now in the running queue.</p>`,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to send email notification:', error);
+    }
+  };
+
   // Check for tasks that should return to running queue
   useEffect(() => {
     const interval = setInterval(() => {
@@ -113,6 +134,9 @@ export const useTaskQueue = () => {
               });
               setNotifiedTasks(prev => new Set([...prev, task.id]));
             }
+
+            // send email notification for each task that moves to running
+            sendEmailNotification(task);
           });
 
           setRunningQueue(running => [
@@ -159,6 +183,27 @@ export const useTaskQueue = () => {
     if (task) {
       setWaitingQueue(prev => prev.filter(t => t.id !== taskId));
       setRunningQueue(prev => [...prev, { ...task, returnAt: undefined }]);
+
+      // email notification when user manually moves a task to running
+      (async () => {
+        try {
+          const to = localStorage.getItem('notification-email');
+          const endpoint = (import.meta.env as any).VITE_EMAIL_ENDPOINT || 'http://localhost:4000/send-email';
+          if (!to) return;
+
+          await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to,
+              subject: `Task "${task.title}" is running`,
+              html: `<p>Your task <strong>${task.title}</strong> was moved to the running queue.</p>`,
+            }),
+          });
+        } catch (error) {
+          console.error('Failed to send email notification:', error);
+        }
+      })();
     }
   }, [waitingQueue]);
 

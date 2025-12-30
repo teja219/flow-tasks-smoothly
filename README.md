@@ -80,6 +80,43 @@ This project is built with:
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
 
+## Email notifications (Gmail) 🔔
+
+This app can send an email when a task moves from the waiting queue to the running queue. This requires running a small backend that uses Gmail SMTP (via Nodemailer).
+
+Setup steps:
+
+1. Copy `.env.example` to `.env` and fill in your Gmail credentials (use an App Password for security):
+
+   ```env
+   EMAIL_USER=your.email@gmail.com
+   EMAIL_PASS=your-app-password
+   EMAIL_FROM=no-reply@yourdomain.com
+   PORT=4000
+   # Optional in frontend .env: VITE_EMAIL_ENDPOINT=http://localhost:4000/send-email
+   ```
+
+2. Install dependencies and start the server:
+
+   ```bash
+   npm install
+   npm run start:server
+   ```
+
+3. Start the frontend (in a separate terminal):
+
+   ```bash
+   npm run dev
+   ```
+
+4. When you first open the app you'll be prompted to enter the email address where notifications should be sent — this email is stored in `localStorage` and used when tasks move to the running queue.
+
+Notes:
+
+- For Gmail you'll most likely need to create an App Password instead of using your account password. See: https://support.google.com/accounts/answer/185833
+- You can change the email later via the "Notification email" link in the app header.
+
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!
