@@ -3,16 +3,58 @@ import { Task, QueueType } from '@/types/task';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
+const STORAGE_KEY_RUNNING = 'queue-tasks-running';
+const STORAGE_KEY_WAITING = 'queue-tasks-waiting';
+
+const loadTasksFromStorage = (key: string, defaultTasks: Task[]): Task[] => {
+  try {
+    const stored = localStorage.getItem(key);
+    if (!stored) return defaultTasks;
+
+    const parsed = JSON.parse(stored);
+    return parsed.map((task: any) => ({
+      ...task,
+      createdAt: new Date(task.createdAt),
+      returnAt: task.returnAt ? new Date(task.returnAt) : undefined,
+    }));
+  } catch (error) {
+    console.error('Failed to load tasks from storage:', error);
+    return defaultTasks;
+  }
+};
+
+const saveTasksToStorage = (key: string, tasks: Task[]) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(tasks));
+  } catch (error) {
+    console.error('Failed to save tasks to storage:', error);
+  }
+};
+
 export const useTaskQueue = () => {
-  const [runningQueue, setRunningQueue] = useState<Task[]>([
-    { id: generateId(), title: 'Review pull request', createdAt: new Date() },
-    { id: generateId(), title: 'Fix bug in authentication', createdAt: new Date() },
-  ]);
-  
-  const [waitingQueue, setWaitingQueue] = useState<Task[]>([
-    { id: generateId(), title: 'Write documentation', createdAt: new Date() },
-    { id: generateId(), title: 'Update dependencies', createdAt: new Date() },
-  ]);
+  const [runningQueue, setRunningQueue] = useState<Task[]>(() =>
+    loadTasksFromStorage(STORAGE_KEY_RUNNING, [
+      { id: generateId(), title: 'Review pull request', createdAt: new Date() },
+      { id: generateId(), title: 'Fix bug in authentication', createdAt: new Date() },
+    ])
+  );
+
+  const [waitingQueue, setWaitingQueue] = useState<Task[]>(() =>
+    loadTasksFromStorage(STORAGE_KEY_WAITING, [
+      { id: generateId(), title: 'Write documentation', createdAt: new Date() },
+      { id: generateId(), title: 'Update dependencies', createdAt: new Date() },
+    ])
+  );
+
+  // Save running queue to localStorage whenever it changes
+  useEffect(() => {
+    saveTasksToStorage(STORAGE_KEY_RUNNING, runningQueue);
+  }, [runningQueue]);
+
+  // Save waiting queue to localStorage whenever it changes
+  useEffect(() => {
+    saveTasksToStorage(STORAGE_KEY_WAITING, waitingQueue);
+  }, [waitingQueue]);
 
   // Check for tasks that should return to running queue
   useEffect(() => {
@@ -21,17 +63,17 @@ export const useTaskQueue = () => {
       setWaitingQueue(prev => {
         const tasksToMove = prev.filter(t => t.returnAt && t.returnAt <= now);
         const tasksToKeep = prev.filter(t => !t.returnAt || t.returnAt > now);
-        
+
         if (tasksToMove.length > 0) {
           setRunningQueue(running => [
             ...tasksToMove.map(t => ({ ...t, returnAt: undefined })),
             ...running
           ]);
         }
-        
+
         return tasksToKeep;
       });
-    }, 1000); // Check every second
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
