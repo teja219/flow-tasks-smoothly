@@ -1,3 +1,19 @@
+## Prompt
+
+create a todolist app. It should be queue based. 
+
+There should be two queues. Running Queue and Waiting queue. 
+
+I should be able to take a task from running queue and either close it or put it under waiting queue. 
+
+I can take tasks from Waiting queue and put it under Running Queue. 
+
+It should be easily usable, example use left swipe or right swipe gestures in queue to either close or move to waiting queue. Pull down to push back of the queue. 
+
+Similarly for waiting queue, it should use left swipe to close , right swipe to move to running queue. Pull down to move to running queue. 
+
+Add ability to add new tasks to the running queue
+
 # Welcome to your Lovable project
 
 ## Project info
