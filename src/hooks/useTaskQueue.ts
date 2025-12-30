@@ -31,6 +31,38 @@ const saveTasksToStorage = (key: string, tasks: Task[]) => {
   }
 };
 
+const requestNotificationPermission = async () => {
+  if (!('Notification' in window)) {
+    return false;
+  }
+
+  if (Notification.permission === 'granted') {
+    return true;
+  }
+
+  if (Notification.permission !== 'denied') {
+    try {
+      const permission = await Notification.requestPermission();
+      return permission === 'granted';
+    } catch (error) {
+      console.error('Failed to request notification permission:', error);
+      return false;
+    }
+  }
+
+  return false;
+};
+
+const sendNotification = (title: string, options?: NotificationOptions) => {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, options);
+    } catch (error) {
+      console.error('Failed to send notification:', error);
+    }
+  }
+};
+
 export const useTaskQueue = () => {
   const [runningQueue, setRunningQueue] = useState<Task[]>(() =>
     loadTasksFromStorage(STORAGE_KEY_RUNNING, [
@@ -45,6 +77,13 @@ export const useTaskQueue = () => {
       { id: generateId(), title: 'Update dependencies', createdAt: new Date() },
     ])
   );
+
+  const [notifiedTasks, setNotifiedTasks] = useState<Set<string>>(new Set());
+
+  // Request notification permission on mount
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
 
   // Save running queue to localStorage whenever it changes
   useEffect(() => {
@@ -65,6 +104,17 @@ export const useTaskQueue = () => {
         const tasksToKeep = prev.filter(t => !t.returnAt || t.returnAt > now);
 
         if (tasksToMove.length > 0) {
+          tasksToMove.forEach(task => {
+            if (!notifiedTasks.has(task.id)) {
+              sendNotification('Task Ready', {
+                body: `${task.title} is ready to run`,
+                tag: `task-${task.id}`,
+                requireInteraction: false,
+              });
+              setNotifiedTasks(prev => new Set([...prev, task.id]));
+            }
+          });
+
           setRunningQueue(running => [
             ...tasksToMove.map(t => ({ ...t, returnAt: undefined })),
             ...running
@@ -76,7 +126,7 @@ export const useTaskQueue = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [notifiedTasks]);
 
   const addTask = useCallback((title: string) => {
     const newTask: Task = {
