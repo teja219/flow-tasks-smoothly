@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Task, QueueType } from '@/types/task';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -13,6 +13,28 @@ export const useTaskQueue = () => {
     { id: generateId(), title: 'Write documentation', createdAt: new Date() },
     { id: generateId(), title: 'Update dependencies', createdAt: new Date() },
   ]);
+
+  // Check for tasks that should return to running queue
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      setWaitingQueue(prev => {
+        const tasksToMove = prev.filter(t => t.returnAt && t.returnAt <= now);
+        const tasksToKeep = prev.filter(t => !t.returnAt || t.returnAt > now);
+        
+        if (tasksToMove.length > 0) {
+          setRunningQueue(running => [
+            ...tasksToMove.map(t => ({ ...t, returnAt: undefined })),
+            ...running
+          ]);
+        }
+        
+        return tasksToKeep;
+      });
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval);
+  }, []);
 
   const addTask = useCallback((title: string) => {
     const newTask: Task = {
@@ -31,11 +53,12 @@ export const useTaskQueue = () => {
     }
   }, []);
 
-  const moveToWaiting = useCallback((taskId: string) => {
+  const moveToWaiting = useCallback((taskId: string, waitMinutes: number) => {
     const task = runningQueue.find(t => t.id === taskId);
     if (task) {
+      const returnAt = new Date(Date.now() + waitMinutes * 60 * 1000);
       setRunningQueue(prev => prev.filter(t => t.id !== taskId));
-      setWaitingQueue(prev => [...prev, task]);
+      setWaitingQueue(prev => [...prev, { ...task, returnAt }]);
     }
   }, [runningQueue]);
 
@@ -43,7 +66,7 @@ export const useTaskQueue = () => {
     const task = waitingQueue.find(t => t.id === taskId);
     if (task) {
       setWaitingQueue(prev => prev.filter(t => t.id !== taskId));
-      setRunningQueue(prev => [...prev, task]);
+      setRunningQueue(prev => [...prev, { ...task, returnAt: undefined }]);
     }
   }, [waitingQueue]);
 
